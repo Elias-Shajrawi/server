@@ -1,6 +1,6 @@
 // start-server.js - Windows-compatible server starter
+const { spawn } = require('child_process');
 const path = require('path');
-const fs = require('fs');
 
 console.log('Starting LocalTunnel Server (Windows Compatible)...');
 
@@ -52,121 +52,138 @@ Options:
 
 console.log('Configuration:', config);
 
-// Try to start the server using different methods
+// Start the server using the original bin/server with proper Node.js flags
 async function startServer() {
     try {
-        // Method 1: Try to use the ESM server with require (bypass esm module)
-        console.log('Attempting to start server...');
+        console.log('🚀 Starting LocalTunnel server...');
         
-        // Load the main server module directly
-        const serverPath = path.join(__dirname, 'server.js');
+        // Build command arguments
+        const serverArgs = [
+            '--port', config.port.toString(),
+            '--address', config.address,
+            '--max-sockets', config.maxSockets.toString()
+        ];
         
-        if (!fs.existsSync(serverPath)) {
-            throw new Error(`Server file not found: ${serverPath}`);
+        if (config.secure) {
+            serverArgs.push('--secure');
         }
         
-        // Set environment variables
-        process.env.PORT = config.port.toString();
-        process.env.ADDRESS = config.address;
-        if (config.domain) process.env.DOMAIN = config.domain;
-        if (config.secure) process.env.SECURE = 'true';
-        process.env.MAX_SOCKETS = config.maxSockets.toString();
+        if (config.domain) {
+            serverArgs.push('--domain', config.domain);
+        }
         
-        console.log(`Starting server on ${config.address}:${config.port}`);
+        console.log(`📡 Server will run on ${config.address}:${config.port}`);
         
-        // Try different loading methods
-        let server;
+        // Try different Node.js execution methods
+        const methods = [
+            // Method 1: Use esm loader (original method)
+            {
+                name: 'ESM Loader',
+                args: ['-r', 'esm', './bin/server', ...serverArgs]
+            },
+            // Method 2: Use experimental modules
+            {
+                name: 'Experimental Modules',
+                args: ['--experimental-modules', '--es-module-specifier-resolution=node', './bin/server', ...serverArgs]
+            },
+            // Method 3: Use loader with import maps
+            {
+                name: 'Import Resolution',
+                args: ['--loader', './node_modules/esm/esm.js', './bin/server', ...serverArgs]
+            }
+        ];
         
-        try {
-            // Method 1: Try with ESM loader
-            const esmLoader = require('esm')(module);
-            server = esmLoader('./server.js');
-            console.log('✅ Server loaded with ESM');
-        } catch (esmError) {
-            console.log('⚠️  ESM loading failed, trying alternative methods...');
+        for (const method of methods) {
+            console.log(`\n🔄 Trying ${method.name}...`);
             
             try {
-                // Method 2: Try direct require (if server.js is CommonJS compatible)
-                server = require('./server.js');
-                console.log('✅ Server loaded with require');
-            } catch (requireError) {
-                console.log('⚠️  Direct require failed, trying Babel...');
+                const child = spawn('node', method.args, {
+                    stdio: 'inherit',
+                    cwd: __dirname,
+                    env: {
+                        ...process.env,
+                        NODE_ENV: process.env.NODE_ENV || 'development'
+                    }
+                });
                 
-                try {
-                    // Method 3: Try with Babel
-                    require('@babel/register')({
-                        presets: ['@babel/preset-env']
-                    });
-                    server = require('./server.js');
-                    console.log('✅ Server loaded with Babel');
-                } catch (babelError) {
-                    console.error('❌ All loading methods failed:');
-                    console.error('ESM Error:', esmError.message);
-                    console.error('Require Error:', requireError.message);
-                    console.error('Babel Error:', babelError.message);
+                // Wait a bit to see if the process starts successfully
+                await new Promise((resolve, reject) => {
+                    let resolved = false;
                     
-                    // Method 4: Fallback - spawn child process
-                    console.log('🔄 Trying child process fallback...');
-                    const { spawn } = require('child_process');
-                    
-                    const nodeArgs = ['--experimental-modules', '--es-module-specifier-resolution=node'];
-                    const serverArgs = ['./bin/server', '--port', config.port.toString()];
-                    
-                    const child = spawn('node', [...nodeArgs, ...serverArgs], {
-                        stdio: 'inherit',
-                        cwd: __dirname
-                    });
+                    const timeout = setTimeout(() => {
+                        if (!resolved) {
+                            resolved = true;
+                            console.log(`✅ ${method.name} started successfully!`);
+                            resolve();
+                        }
+                    }, 3000);
                     
                     child.on('error', (error) => {
-                        console.error('❌ Child process failed:', error);
-                        process.exit(1);
+                        if (!resolved) {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            reject(error);
+                        }
                     });
                     
                     child.on('exit', (code) => {
-                        console.log(`Server process exited with code ${code}`);
-                        process.exit(code);
+                        if (!resolved) {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            if (code !== 0) {
+                                reject(new Error(`Process exited with code ${code}`));
+                            } else {
+                                resolve();
+                            }
+                        }
                     });
-                    
-                    // Handle graceful shutdown
-                    process.on('SIGINT', () => {
-                        console.log('\n🛑 Shutting down server...');
-                        child.kill('SIGINT');
-                    });
-                    
-                    process.on('SIGTERM', () => {
-                        console.log('\n🛑 Shutting down server...');
-                        child.kill('SIGTERM');
-                    });
-                    
-                    return;
-                }
+                });
+                
+                // If we get here, the server started successfully
+                console.log(`🎉 LocalTunnel Server is running with ${method.name}!`);
+                console.log(`📡 Access your server at: http://${config.address}:${config.port}`);
+                console.log(`🔗 Health check: http://${config.address}:${config.port}/health`);
+                console.log(`📊 Status API: http://${config.address}:${config.port}/api/status`);
+                
+                // Handle graceful shutdown
+                process.on('SIGINT', () => {
+                    console.log('\n🛑 Shutting down server...');
+                    child.kill('SIGINT');
+                    process.exit(0);
+                });
+                
+                process.on('SIGTERM', () => {
+                    console.log('\n🛑 Shutting down server...');
+                    child.kill('SIGTERM');
+                    process.exit(0);
+                });
+                
+                // Keep the process alive
+                child.on('exit', (code) => {
+                    console.log(`Server process exited with code ${code}`);
+                    process.exit(code);
+                });
+                
+                return; // Success, exit the method loop
+                
+            } catch (error) {
+                console.log(`❌ ${method.name} failed: ${error.message}`);
+                continue; // Try next method
             }
         }
         
-        // If we get here, the server was loaded successfully
-        console.log('🚀 LocalTunnel Server started successfully!');
-        console.log(`📡 Server running at http://${config.address}:${config.port}`);
-        
-        // Handle graceful shutdown
-        process.on('SIGINT', () => {
-            console.log('\n🛑 Shutting down server...');
-            process.exit(0);
-        });
-        
-        process.on('SIGTERM', () => {
-            console.log('\n🛑 Shutting down server...');
-            process.exit(0);
-        });
+        // If all methods failed
+        throw new Error('All startup methods failed');
         
     } catch (error) {
-        console.error('❌ Failed to start server:', error);
-        console.error('Stack trace:', error.stack);
+        console.error('❌ Failed to start server:', error.message);
         
         console.log('\n🔧 Troubleshooting tips:');
         console.log('1. Make sure all dependencies are installed: npm install');
-        console.log('2. Try installing Babel: npm run install:babel');
-        console.log('3. Check Node.js version: node --version (recommended: 16+)');
-        console.log('4. Try running with experimental flags: npm run start:experimental');
+        console.log('2. Check Node.js version: node --version (recommended: 16+)');
+        console.log('3. Try installing ESM: npm install esm');
+        console.log('4. Try running directly: node -r esm ./bin/server --port 3000');
+        console.log('5. Check if port is already in use: lsof -i :3000');
         
         process.exit(1);
     }
