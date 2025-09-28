@@ -39,7 +39,7 @@ goto :end
 
 :server
 echo [INFO] Starting LocalTunnel server on port 3000...
-call npm run dev
+call node start-server.js --port 3000
 goto :end
 
 :dashboard
@@ -56,7 +56,7 @@ if errorlevel 1 (
     echo [WARNING] Installing concurrently for running both services...
     call npm install --save-dev concurrently
 )
-call npx concurrently --names "SERVER,DASHBOARD" --prefix-colors "blue,green" "npm run dev" "cd client_app && npm run dev"
+call npx concurrently --names "SERVER,DASHBOARD" --prefix-colors "blue,green" "node start-server.js --port 3000" "cd client_app && npm run dev"
 goto :end
 
 :build
