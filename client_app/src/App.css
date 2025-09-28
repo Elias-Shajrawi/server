@@ -1,0 +1,48 @@
+/* App-specific styles */
+.App {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Dark mode utilities */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f6f6f6;
+    background-color: #2f2f2f;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-track {
+    background: #374151;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #6b7280;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}

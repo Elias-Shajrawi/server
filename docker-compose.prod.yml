@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  # LocalTunnel Server from registry
+  localtunnel-server:
+    image: your-registry/localtunnel-server:latest
+    container_name: localtunnel-server
+    ports:
+      - "3000:80"
+    networks:
+      - tunnel-network
+    restart: unless-stopped
+
+  # Customer Dashboard from registry
+  customer-dashboard:
+    image: your-registry/customer-dashboard:latest
+    container_name: customer-dashboard
+    ports:
+      - "8080:80"
+    networks:
+      - tunnel-network
+    depends_on:
+      - localtunnel-server
+    restart: unless-stopped
+    environment:
+      # These environment variables are baked into the image at build time
+      # To change them, rebuild the image with different build args
+      - NODE_ENV=production
+
+networks:
+  tunnel-network:
+    driver: bridge

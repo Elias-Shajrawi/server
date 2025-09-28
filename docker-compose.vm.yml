@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  # LocalTunnel Server from registry
+  localtunnel-server:
+    image: roklerd/localtunnel-server:latest
+    container_name: localtunnel-server
+    ports:
+      - "3000:80"
+    networks:
+      - tunnel-network
+    restart: unless-stopped
+
+  # Customer Dashboard from registry
+  customer-dashboard:
+    image: roklerd/customer-dashboard:latest
+    container_name: customer-dashboard
+    ports:
+      - "8080:80"
+    networks:
+      - tunnel-network
+    depends_on:
+      - localtunnel-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+networks:
+  tunnel-network:
+    driver: bridge
+# Instructions for deployment:
+# 1. Make sure Docker is installed on your VM
+# 2. Copy this file to your VM
+# 3. Run: docker-compose -f docker-compose.vm.yml pull
+# 4. Run: docker-compose -f docker-compose.vm.yml up -d
+# 5. Access the dashboard at: http://YOUR_VM_IP:8080
+# 6. LocalTunnel server will be at: http://YOUR_VM_IP:3000

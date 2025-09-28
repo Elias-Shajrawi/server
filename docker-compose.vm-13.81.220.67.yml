@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  # LocalTunnel Server from Docker Hub
+  localtunnel-server:
+    image: roklerd/localtunnel-server:latest
+    container_name: localtunnel-server
+    ports:
+      - "3000:80"
+    networks:
+      - tunnel-network
+    restart: unless-stopped
+
+  # Customer Dashboard from Docker Hub (built with IP 13.81.220.67)
+  customer-dashboard:
+    image: roklerd/customer-dashboard:latest
+    container_name: customer-dashboard
+    ports:
+      - "8080:80"
+    networks:
+      - tunnel-network
+    depends_on:
+      - localtunnel-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+networks:
+  tunnel-network:
+    driver: bridge
+# Deployment Instructions for VM 13.81.220.67:
+#
+# 1. Copy this file to your VM
+# 2. Run: docker-compose -f docker-compose.vm-13.81.220.67.yml pull
+# 3. Run: docker-compose -f docker-compose.vm-13.81.220.67.yml up -d
+# 4. Access the dashboard at: http://13.81.220.67:8080
+# 5. LocalTunnel server will be at: http://13.81.220.67:3000
+#
+# The dashboard is pre-configured with your VM IP address (13.81.220.67)
+# and will show this IP in the "Server Host Domain" field.

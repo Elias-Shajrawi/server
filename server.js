@@ -28,12 +28,130 @@ export default function(opt) {
     const app = new Koa();
     const router = new Router();
 
+    // Health check and API middleware - must be first to avoid conflicts
+    app.use(async (ctx, next) => {
+        // Health check endpoint
+        if (ctx.path === '/health') {
+            ctx.set('Access-Control-Allow-Origin', '*');
+            ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            
+            ctx.body = {
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime()
+            };
+            return;
+        }
+        
+        // API status endpoint
+        if (ctx.path === '/api/status') {
+            ctx.set('Access-Control-Allow-Origin', '*');
+            ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            
+            const stats = manager.stats;
+            ctx.body = {
+                tunnels: stats.tunnels,
+                mem: process.memoryUsage(),
+                uptime: process.uptime(),
+                timestamp: new Date().toISOString()
+            };
+            return;
+        }
+        
+        // API tunnels endpoint
+        if (ctx.path === '/api/tunnels') {
+            ctx.set('Access-Control-Allow-Origin', '*');
+            ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            
+            const clients = manager.clients;
+            const tunnels = [];
+            
+            for (const clientId in clients) {
+                const client = clients[clientId];
+                if (client) {
+                    const stats = client.stats();
+                    tunnels.push({
+                        id: clientId,
+                        url: `${schema}://${clientId}.${ctx.request.host}`,
+                        connected_sockets: stats.connectedSockets,
+                        created_at: client.created_at || new Date().toISOString()
+                    });
+                }
+            }
+            
+            ctx.body = tunnels;
+            return;
+        }
+        
+        await next();
+    });
+
+    // CORS middleware for all other requests
+    app.use(async (ctx, next) => {
+        // Set CORS headers for all requests
+        ctx.set('Access-Control-Allow-Origin', '*');
+        ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        
+        // Handle preflight requests
+        if (ctx.method === 'OPTIONS') {
+            ctx.status = 200;
+            ctx.body = '';
+            return;
+        }
+        
+        await next();
+    });
+
+    // Health check endpoint (router version as backup)
+    router.get('/health', async (ctx, next) => {
+        ctx.body = {
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+        };
+    });
+
     router.get('/api/status', async (ctx, next) => {
+        // Set CORS headers
+        ctx.set('Access-Control-Allow-Origin', '*');
+        ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        
         const stats = manager.stats;
         ctx.body = {
             tunnels: stats.tunnels,
             mem: process.memoryUsage(),
         };
+    });
+
+    // Get all active tunnels
+    router.get('/api/tunnels', async (ctx, next) => {
+        // Set CORS headers
+        ctx.set('Access-Control-Allow-Origin', '*');
+        ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        
+        const clients = manager.clients;
+        const tunnels = [];
+        
+        for (const clientId in clients) {
+            const client = clients[clientId];
+            if (client) {
+                const stats = client.stats();
+                tunnels.push({
+                    id: clientId,
+                    url: `${schema}://${clientId}.${ctx.request.host}`,
+                    connected_sockets: stats.connectedSockets,
+                    created_at: client.created_at || new Date().toISOString()
+                });
+            }
+        }
+        
+        ctx.body = tunnels;
     });
 
     router.get('/api/tunnels/:id/status', async (ctx, next) => {
@@ -93,6 +211,12 @@ export default function(opt) {
         }
 
         const reqId = parts[1];
+
+        // Skip API routes and health check
+        if (reqId === 'api' || reqId === 'health') {
+            await next();
+            return;
+        }
 
         // limit requested hostnames to 63 characters
         if (! /^(?:[a-z0-9][a-z0-9\-]{4,63}[a-z0-9]|[a-z0-9]{4,63})$/.test(reqId)) {
