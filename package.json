@@ -28,7 +28,12 @@
   },
   "scripts": {
     "test": "mocha --check-leaks --require esm './**/*.test.js'",
-    "start": "./bin/server",
-    "dev": "node-dev bin/server --port 3000"
+    "start": "node -r esm ./bin/server --port 3000",
+    "dev": "node-dev -r esm ./bin/server --port 3000",
+    "server": "node -r esm ./bin/server",
+    "server:prod": "NODE_ENV=production node -r esm ./bin/server --port 80",
+    "server:dev": "NODE_ENV=development node-dev -r esm ./bin/server --port 3000",
+    "health": "curl http://localhost:3000/health || echo 'Server not running'",
+    "status": "curl http://localhost:3000/api/status || echo 'Server not running'"
   }
 }

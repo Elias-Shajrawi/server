@@ -7,7 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "vite",
+    "serve": "vite preview --port 8080",
+    "build:prod": "NODE_ENV=production vite build",
+    "build:dev": "NODE_ENV=development vite build",
+    "serve:static": "npx serve dist -p 8080",
+    "clean": "rm -rf dist node_modules/.vite",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write src/**/*.{js,jsx,ts,tsx,json,css,md}"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",

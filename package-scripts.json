@@ -1,0 +1,27 @@
+{
+  "name": "localtunnel-full-stack",
+  "version": "1.0.0",
+  "description": "LocalTunnel Server with Customer Dashboard - Development Scripts",
+  "scripts": {
+    "install:all": "npm install && cd client_app && npm install",
+    "dev:server": "npm run dev",
+    "dev:dashboard": "cd client_app && npm run dev",
+    "dev:both": "concurrently \"npm run dev:server\" \"npm run dev:dashboard\"",
+    "start:server": "npm start",
+    "start:dashboard": "cd client_app && npm start",
+    "start:both": "concurrently \"npm run start:server\" \"npm run start:dashboard\"",
+    "build:dashboard": "cd client_app && npm run build",
+    "serve:dashboard": "cd client_app && npm run serve:static",
+    "test:server": "npm test",
+    "test:dashboard": "cd client_app && npm run lint",
+    "health:check": "npm run health",
+    "clean:all": "rm -rf node_modules client_app/node_modules client_app/dist",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
